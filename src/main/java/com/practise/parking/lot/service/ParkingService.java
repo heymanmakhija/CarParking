@@ -83,37 +83,37 @@ public class ParkingService {
         VehicleType vehicleType = vehicle.getType();
 
         if (vehicleType.equals(VehicleType.TRUCK)) {
-            List<ParkingSpot> freeTruckSpots = parkingSpotRepository.findAllByTypeAndFree(ParkingSpotType.LARGE, true);
+            List<ParkingSpot> freeTruckSpots = parkingSpotRepository.getSpots(ParkingSpotType.LARGE.toString(), true);
             if (freeTruckSpots.size() > 0) {
                 ParkingSpot spot = freeTruckSpots.get(0);
                 markSpotFull(spot, vehicle);
             }
         } else if (vehicleType.equals(VehicleType.CAR)) {
-            List<ParkingSpot> freeCarSpots = parkingSpotRepository.findAllByTypeAndFree(ParkingSpotType.COMPACT, true);
+            List<ParkingSpot> freeCarSpots = parkingSpotRepository.getSpots(ParkingSpotType.COMPACT.toString(), true);
             if (freeCarSpots.size() > 0) {
                 ParkingSpot spot = freeCarSpots.get(0);
                 markSpotFull(spot, vehicle);
             } else {
-                List<ParkingSpot> freeTruckSpots = parkingSpotRepository.findAllByTypeAndFree(ParkingSpotType.LARGE, true);
+                List<ParkingSpot> freeTruckSpots = parkingSpotRepository.getSpots(ParkingSpotType.LARGE.toString(), true);
                 if (freeTruckSpots.size() > 0) {
                     ParkingSpot spot = freeTruckSpots.get(0);
                     markSpotFull(spot, vehicle);
                 }
             }
         } else {
-            List<ParkingSpot> freeBikeSpots = parkingSpotRepository.findAllByTypeAndFree(ParkingSpotType.BIKE, true);
+            List<ParkingSpot> freeBikeSpots = parkingSpotRepository.getSpots(ParkingSpotType.BIKE.toString(), true);
             if (freeBikeSpots.size() > 0) {
                 ParkingSpot spot = freeBikeSpots.get(0);
                 markSpotFull(spot, vehicle);
             } else {
-                List<ParkingSpot> freeCarSpots = parkingSpotRepository.findAllByTypeAndFree(ParkingSpotType.COMPACT, true);
+                List<ParkingSpot> freeCarSpots = parkingSpotRepository.getSpots(ParkingSpotType.COMPACT.toString(), true);
                 if (freeCarSpots.size() > 0) {
                     ParkingSpot spot = freeCarSpots.get(0);
                     spot.setFree(false);
                     spot.setVehicle(vehicle);
                     parkingSpotRepository.save(spot);
                 } else {
-                    List<ParkingSpot> freeTruckSpots = parkingSpotRepository.findAllByTypeAndFree(ParkingSpotType.LARGE, true);
+                    List<ParkingSpot> freeTruckSpots = parkingSpotRepository.getSpots(ParkingSpotType.LARGE.toString(), true);
                     if (freeTruckSpots.size() > 0) {
                         ParkingSpot spot = freeTruckSpots.get(0);
                         markSpotFull(spot, vehicle);
