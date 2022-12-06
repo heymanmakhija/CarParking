@@ -149,9 +149,9 @@ public class ParkingService {
 
     Float calculateCharge(Vehicle vehicle) {
         VehicleType type = vehicle.getType();
-        long diff = vehicle.getCheckOut().getTime() - vehicle.getCheckIn().getTime();
+        long diff = vehicle.getCheckOut().getTime() - vehicle.getCheckIn().getTime(); //in milli-sec
         long hour = diff / (1000 * 60 * 60);
-        long hourRoundOff = diff % 3600000 == 0 ? hour : hour + 1;
+        long hourRoundOff = diff % 3600000 == 0 ? hour : hour + 1; //if exact hour
         float charge = 0f;
 
         switch (type) {
