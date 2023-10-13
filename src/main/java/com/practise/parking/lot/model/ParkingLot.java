@@ -19,7 +19,7 @@ public class ParkingLot {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
     @OneToMany(cascade = CascadeType.ALL)
-    List<ParkingSpot> slots;
+    List<ParkingSpot> spots;
     @Enumerated(EnumType.STRING)
     Floor floor;
     @CreatedDate

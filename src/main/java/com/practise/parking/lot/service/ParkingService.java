@@ -72,7 +72,7 @@ public class ParkingService {
         }
 
         ParkingLot parkingLot = new ParkingLot();
-        parkingLot.setSlots(parkingSpotList);
+        parkingLot.setSpots(parkingSpotList);
         parkingLot.setFloor(parkingLotRequest.getFloor());
         parkingLotRepository.save(parkingLot);
     }
@@ -147,7 +147,7 @@ public class ParkingService {
         vehicleRepository.save(vehicle);
     }
 
-    Float calculateCharge(Vehicle vehicle) {
+    public Float calculateCharge(Vehicle vehicle) {
         VehicleType type = vehicle.getType();
         long diff = vehicle.getCheckOut().getTime() - vehicle.getCheckIn().getTime(); //in milli-sec
         long hour = diff / (1000 * 60 * 60);
