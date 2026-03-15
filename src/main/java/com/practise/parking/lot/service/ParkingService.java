@@ -77,9 +77,10 @@ public class ParkingService {
         parkingLotRepository.save(parkingLot);
     }
 
-    public void parkVehicle(Long vehicleId) {
+    public void parkVehicle(Long vehicleId) throws Exception {
 
-        Vehicle vehicle = vehicleRepository.findById(vehicleId).get();
+        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new Exception("Vehicle not found with id: " + vehicleId));
         VehicleType vehicleType = vehicle.getType();
 
         if (vehicleType.equals(VehicleType.TRUCK)) {
@@ -124,13 +125,14 @@ public class ParkingService {
 
     }
 
-    public Float unParkVehicle(Long vehicleId) {
+    public Float unParkVehicle(Long vehicleId) throws Exception {
         ParkingSpot parkingSpot = parkingSpotRepository.findByVehicleId(vehicleId);
         parkingSpot.setFree(true);
         parkingSpot.setVehicle(null);
         parkingSpotRepository.save(parkingSpot);
 
-        Vehicle vehicle = vehicleRepository.findById(vehicleId).get();
+        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new Exception("Vehicle not found with id: " + vehicleId));
         vehicle.setCheckOut(new Date());
         Float charge = calculateCharge(vehicle);
         vehicle.setCharge(charge);
