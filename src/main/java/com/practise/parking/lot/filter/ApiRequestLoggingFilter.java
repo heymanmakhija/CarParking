@@ -5,6 +5,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.ContentCachingRequestWrapper;
+import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
@@ -26,9 +27,10 @@ public class ApiRequestLoggingFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
+        ContentCachingResponseWrapper wrappedResponse = new ContentCachingResponseWrapper(response);
 
         try {
-            filterChain.doFilter(wrappedRequest, response);
+            filterChain.doFilter(wrappedRequest, wrappedResponse);
         } finally {
             log.info(
                     "API request received: method={}, path={}, queryParams={}, body={}",
@@ -37,6 +39,14 @@ public class ApiRequestLoggingFilter extends OncePerRequestFilter {
                     formatParameters(wrappedRequest.getParameterMap()),
                     extractPayload(wrappedRequest)
             );
+            log.info(
+                    "API response sent: method={}, path={}, status={}, body={}",
+                    wrappedRequest.getMethod(),
+                    wrappedRequest.getRequestURI(),
+                    wrappedResponse.getStatus(),
+                    extractPayload(wrappedResponse)
+            );
+            wrappedResponse.copyBodyToResponse();
         }
     }
 
@@ -52,7 +62,14 @@ public class ApiRequestLoggingFilter extends OncePerRequestFilter {
     }
 
     private String extractPayload(ContentCachingRequestWrapper request) {
-        byte[] payload = request.getContentAsByteArray();
+        return toPayloadString(request.getContentAsByteArray());
+    }
+
+    private String extractPayload(ContentCachingResponseWrapper response) {
+        return toPayloadString(response.getContentAsByteArray());
+    }
+
+    private String toPayloadString(byte[] payload) {
         if (payload.length == 0) {
             return "";
         }
