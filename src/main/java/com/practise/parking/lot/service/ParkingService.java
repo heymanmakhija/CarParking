@@ -6,6 +6,8 @@ import com.practise.parking.lot.model.Vehicle;
 import com.practise.parking.lot.model.enums.ParkingSpotType;
 import com.practise.parking.lot.model.enums.VehicleType;
 import com.practise.parking.lot.model.request.ParkingLotRequest;
+import com.practise.parking.lot.model.response.ParkedVehicleSummaryItem;
+import com.practise.parking.lot.model.response.ParkedVehicleSummaryResponse;
 import com.practise.parking.lot.repository.ParkingLotRepository;
 import com.practise.parking.lot.repository.ParkingSpotRepository;
 import com.practise.parking.lot.repository.VehicleRepository;
@@ -13,10 +15,18 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.CONFLICT;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
 @Transactional
@@ -33,7 +43,27 @@ public class ParkingService {
     ParkingSpotRepository parkingSpotRepository;
 
     public Long addVehicle(Vehicle vehicle) {
+        String vehicleNo = vehicle.getVehicleNo();
+        if (!StringUtils.hasText(vehicleNo)) {
+            throw new ResponseStatusException(BAD_REQUEST, "vehicleNo is required");
+        }
+
+        if (vehicle.getType() == null) {
+            throw new ResponseStatusException(BAD_REQUEST, "vehicle type is required");
+        }
+
+        String normalizedVehicleNo = vehicleNo.trim().toUpperCase();
+        if (vehicleRepository.existsByVehicleNo(normalizedVehicleNo)) {
+            throw new ResponseStatusException(CONFLICT, "Vehicle already exists with vehicleNo: " + normalizedVehicleNo);
+        }
+
+        if (!hasAvailableSpot(vehicle.getType())) {
+            throw new ResponseStatusException(CONFLICT, "No parking spot available for vehicle type: " + vehicle.getType());
+        }
+
+        vehicle.setVehicleNo(normalizedVehicleNo);
         Vehicle newVehicle = vehicleRepository.save(vehicle);
+        assignParkingSpot(newVehicle);
         return newVehicle.getId();
     }
 
@@ -77,62 +107,41 @@ public class ParkingService {
         parkingLotRepository.save(parkingLot);
     }
 
-    public void parkVehicle(Long vehicleId) throws Exception {
+    public void parkVehicle(Long vehicleId) {
 
         Vehicle vehicle = vehicleRepository.findById(vehicleId)
-                .orElseThrow(() -> new Exception("Vehicle not found with id: " + vehicleId));
-        VehicleType vehicleType = vehicle.getType();
-
-        if (vehicleType.equals(VehicleType.TRUCK)) {
-            List<ParkingSpot> freeTruckSpots = parkingSpotRepository.getSpots(ParkingSpotType.LARGE.toString(), true);
-            if (freeTruckSpots.size() > 0) {
-                ParkingSpot spot = freeTruckSpots.get(0);
-                markSpotFull(spot, vehicle);
-            }
-        } else if (vehicleType.equals(VehicleType.CAR)) {
-            List<ParkingSpot> freeCarSpots = parkingSpotRepository.getSpots(ParkingSpotType.COMPACT.toString(), true);
-            if (freeCarSpots.size() > 0) {
-                ParkingSpot spot = freeCarSpots.get(0);
-                markSpotFull(spot, vehicle);
-            } else {
-                List<ParkingSpot> freeTruckSpots = parkingSpotRepository.getSpots(ParkingSpotType.LARGE.toString(), true);
-                if (freeTruckSpots.size() > 0) {
-                    ParkingSpot spot = freeTruckSpots.get(0);
-                    markSpotFull(spot, vehicle);
-                }
-            }
-        } else {
-            List<ParkingSpot> freeBikeSpots = parkingSpotRepository.getSpots(ParkingSpotType.BIKE.toString(), true);
-            if (freeBikeSpots.size() > 0) {
-                ParkingSpot spot = freeBikeSpots.get(0);
-                markSpotFull(spot, vehicle);
-            } else {
-                List<ParkingSpot> freeCarSpots = parkingSpotRepository.getSpots(ParkingSpotType.COMPACT.toString(), true);
-                if (freeCarSpots.size() > 0) {
-                    ParkingSpot spot = freeCarSpots.get(0);
-                    spot.setFree(false);
-                    spot.setVehicle(vehicle);
-                    parkingSpotRepository.save(spot);
-                } else {
-                    List<ParkingSpot> freeTruckSpots = parkingSpotRepository.getSpots(ParkingSpotType.LARGE.toString(), true);
-                    if (freeTruckSpots.size() > 0) {
-                        ParkingSpot spot = freeTruckSpots.get(0);
-                        markSpotFull(spot, vehicle);
-                    }
-                }
-            }
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Vehicle not found with id: " + vehicleId));
+        if (parkingSpotRepository.findByVehicleId(vehicleId) != null) {
+            throw new ResponseStatusException(CONFLICT, "Vehicle is already parked with id: " + vehicleId);
         }
 
+        assignParkingSpot(vehicle);
     }
 
-    public Float unParkVehicle(Long vehicleId) throws Exception {
-        ParkingSpot parkingSpot = parkingSpotRepository.findByVehicleId(vehicleId);
+    public Float unParkVehicle(Long vehicleId) {
+        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Vehicle not found with id: " + vehicleId));
+        return unParkVehicle(vehicle);
+    }
+
+    public Float unParkVehicle(String vehicleNo) {
+        Vehicle vehicle = vehicleRepository.findByVehicleNo(vehicleNo);
+        if (vehicle == null) {
+            throw new ResponseStatusException(NOT_FOUND, "Vehicle not found with vehicleNo: " + vehicleNo);
+        }
+        return unParkVehicle(vehicle);
+    }
+
+    private Float unParkVehicle(Vehicle vehicle) {
+        ParkingSpot parkingSpot = parkingSpotRepository.findByVehicleId(vehicle.getId());
+        if (parkingSpot == null) {
+            throw new ResponseStatusException(NOT_FOUND, "Parking spot not found for vehicle: " + vehicle.getId());
+        }
+
         parkingSpot.setFree(true);
         parkingSpot.setVehicle(null);
         parkingSpotRepository.save(parkingSpot);
 
-        Vehicle vehicle = vehicleRepository.findById(vehicleId)
-                .orElseThrow(() -> new Exception("Vehicle not found with id: " + vehicleId));
         vehicle.setCheckOut(new Date());
         Float charge = calculateCharge(vehicle);
         vehicle.setCharge(charge);
@@ -168,6 +177,80 @@ public class ParkingService {
                 break;
         }
         return charge;
+    }
+
+    public ParkedVehicleSummaryResponse getParkedVehicleSummary() {
+        List<ParkingSpot> occupiedSpots = parkingSpotRepository.findOccupiedSpots();
+
+        List<ParkedVehicleSummaryItem> parkedVehicles = occupiedSpots.stream()
+                .map(parkingSpot -> new ParkedVehicleSummaryItem(
+                        parkingSpot.getId(),
+                        parkingSpot.getType(),
+                        parkingSpot.getVehicle().getId(),
+                        parkingSpot.getVehicle().getVehicleNo(),
+                        parkingSpot.getVehicle().getType()
+                ))
+                .collect(Collectors.toList());
+
+        Map<String, Long> countsByVehicleType = parkedVehicles.stream()
+                .collect(Collectors.groupingBy(
+                        parkedVehicle -> parkedVehicle.getVehicleType().name(),
+                        Collectors.counting()
+                ));
+
+        return new ParkedVehicleSummaryResponse(
+                parkedVehicles.size(),
+                countsByVehicleType,
+                parkedVehicles
+        );
+    }
+
+    private boolean hasAvailableSpot(VehicleType vehicleType) {
+        if (vehicleType.equals(VehicleType.TRUCK)) {
+            return !parkingSpotRepository.getSpots(ParkingSpotType.LARGE.toString(), true).isEmpty();
+        }
+
+        if (vehicleType.equals(VehicleType.CAR)) {
+            return !parkingSpotRepository.getSpots(ParkingSpotType.COMPACT.toString(), true).isEmpty()
+                    || !parkingSpotRepository.getSpots(ParkingSpotType.LARGE.toString(), true).isEmpty();
+        }
+
+        return !parkingSpotRepository.getSpots(ParkingSpotType.BIKE.toString(), true).isEmpty()
+                || !parkingSpotRepository.getSpots(ParkingSpotType.COMPACT.toString(), true).isEmpty()
+                || !parkingSpotRepository.getSpots(ParkingSpotType.LARGE.toString(), true).isEmpty();
+    }
+
+    private void assignParkingSpot(Vehicle vehicle) {
+        VehicleType vehicleType = vehicle.getType();
+        ParkingSpot parkingSpot = findAvailableSpot(vehicleType);
+        if (parkingSpot == null) {
+            throw new ResponseStatusException(CONFLICT, "No parking spot available for vehicle type: " + vehicleType);
+        }
+        markSpotFull(parkingSpot, vehicle);
+    }
+
+    private ParkingSpot findAvailableSpot(VehicleType vehicleType) {
+        if (vehicleType.equals(VehicleType.TRUCK)) {
+            return getFirstAvailableSpot(ParkingSpotType.LARGE);
+        }
+
+        if (vehicleType.equals(VehicleType.CAR)) {
+            ParkingSpot compactSpot = getFirstAvailableSpot(ParkingSpotType.COMPACT);
+            return compactSpot != null ? compactSpot : getFirstAvailableSpot(ParkingSpotType.LARGE);
+        }
+
+        ParkingSpot bikeSpot = getFirstAvailableSpot(ParkingSpotType.BIKE);
+        if (bikeSpot != null) {
+            return bikeSpot;
+        }
+
+        ParkingSpot compactSpot = getFirstAvailableSpot(ParkingSpotType.COMPACT);
+        return compactSpot != null ? compactSpot : getFirstAvailableSpot(ParkingSpotType.LARGE);
+    }
+
+    private ParkingSpot getFirstAvailableSpot(ParkingSpotType parkingSpotType) {
+        List<ParkingSpot> freeSpots = parkingSpotRepository.getSpots(parkingSpotType.toString(), true);
+        return freeSpots.isEmpty() ? null : freeSpots.get(0);
     }
 
 

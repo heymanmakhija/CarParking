@@ -2,6 +2,7 @@ package com.practise.parking.lot.controller;
 
 import com.practise.parking.lot.model.Vehicle;
 import com.practise.parking.lot.model.request.ParkingLotRequest;
+import com.practise.parking.lot.model.response.ParkedVehicleSummaryResponse;
 import com.practise.parking.lot.service.ParkingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -72,13 +73,26 @@ class ParkingResource {
             ),
             responses = {
                     @ApiResponse(responseCode = "200", description = "Vehicle registered"),
-                    @ApiResponse(responseCode = "400", description = "Invalid vehicle payload")
+                    @ApiResponse(responseCode = "400", description = "Invalid vehicle payload"),
+                    @ApiResponse(responseCode = "409", description = "Vehicle number already exists")
             }
     )
     ResponseEntity<?> addVehicle(@RequestBody Vehicle vehicle) {
         log.info("Adding Vehicle");
         Long id = parkingService.addVehicle(vehicle);
         return ResponseEntity.status(HttpStatus.OK).body(id);
+    }
+
+    @GetMapping("/summary")
+    @Operation(
+            summary = "Get parking summary for currently parked vehicles",
+            description = "Returns the vehicles currently occupying parking spots along with aggregate counts by vehicle type.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Parking summary fetched")
+            }
+    )
+    ResponseEntity<ParkedVehicleSummaryResponse> getParkedVehicleSummary() {
+        return ResponseEntity.ok(parkingService.getParkedVehicleSummary());
     }
 
     // Take note of parking spot as well.
@@ -109,6 +123,20 @@ class ParkingResource {
     )
     ResponseEntity<?> unParkVehicle(@PathVariable("id") Long vehicleId) throws Exception {
         Float charge = parkingService.unParkVehicle(vehicleId);
+        return ResponseEntity.status(HttpStatus.OK).body(charge);
+    }
+
+    @PostMapping("/unParkVehicle/vehicleNo/{vehicleNo}")
+    @Operation(
+            summary = "Unpark a vehicle using vehicle number",
+            description = "Looks up the vehicle by registration number, releases the allocated spot, and returns the computed parking bill.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Vehicle unparked and charge returned"),
+                    @ApiResponse(responseCode = "404", description = "Vehicle or parking spot not found")
+            }
+    )
+    ResponseEntity<?> unParkVehicleByVehicleNo(@PathVariable("vehicleNo") String vehicleNo) throws Exception {
+        Float charge = parkingService.unParkVehicle(vehicleNo);
         return ResponseEntity.status(HttpStatus.OK).body(charge);
     }
 

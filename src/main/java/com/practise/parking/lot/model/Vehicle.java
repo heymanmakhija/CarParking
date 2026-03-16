@@ -24,6 +24,7 @@ public class Vehicle {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Schema(description = "Generated vehicle id.", accessMode = Schema.AccessMode.READ_ONLY, example = "1")
     Long id;
+    @Column(nullable = false, unique = true)
     @Schema(description = "Vehicle registration number.", example = "DL01AB1234")
     String vehicleNo;
     @Enumerated(EnumType.STRING)

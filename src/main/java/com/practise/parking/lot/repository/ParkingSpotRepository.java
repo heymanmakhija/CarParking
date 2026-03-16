@@ -15,4 +15,7 @@ public interface ParkingSpotRepository extends CrudRepository<ParkingSpot, Long>
     List<ParkingSpot> getSpots(String type, Boolean free);
 
     ParkingSpot findByVehicleId(Long vehicleId);
+
+    @Query("SELECT ps FROM ParkingSpot ps JOIN FETCH ps.vehicle v WHERE ps.free = false AND ps.vehicle IS NOT NULL")
+    List<ParkingSpot> findOccupiedSpots();
 }
