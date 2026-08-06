@@ -17,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/park")
 @Slf4j
 @Tag(name = "Parking", description = "Endpoints for parking lot creation, vehicle intake, parking, and checkout.")
 class ParkingResource {
@@ -34,7 +33,7 @@ class ParkingResource {
 
     // Associate parking lot with multilevel parking place.
     // Take note of floor as well, no. of parking spots available for each vehicle type.
-    @PostMapping("/addParkingLot")
+    @PostMapping("parking-lots")
     @Operation(
             summary = "Create parking lot inventory for a floor",
             description = "Adds parking spots for a given floor by vehicle spot type.",
@@ -58,7 +57,7 @@ class ParkingResource {
     }
 
     // Take note of entry gate as well, Return Ticket.
-    @PostMapping("/addVehicle")
+    @PostMapping("vehicles")
     @Operation(
             summary = "Register a vehicle entry",
             description = "Creates a vehicle record and returns the generated ticket or vehicle id.",
@@ -83,7 +82,7 @@ class ParkingResource {
         return ResponseEntity.status(HttpStatus.OK).body(id);
     }
 
-    @GetMapping("/summary")
+    @GetMapping("parking-summary")
     @Operation(
             summary = "Get parking summary for currently parked vehicles",
             description = "Returns the vehicles currently occupying parking spots along with aggregate counts by vehicle type.",
@@ -96,7 +95,7 @@ class ParkingResource {
     }
 
     // Take note of parking spot as well.
-    @PostMapping("/parkVehicle/{id}")
+    @PostMapping("vehicles/{id}/parking-entry")
     @Operation(
             summary = "Assign a parking spot to a vehicle",
             description = "Finds a compatible free spot and marks it occupied for the provided vehicle id.",
@@ -112,7 +111,7 @@ class ParkingResource {
     }
 
     // Take note of exit gate as well. Return bill.
-    @PostMapping("/unParkVehicle/{id}")
+    @PostMapping("vehicles/{id}/parking-exit")
     @Operation(
             summary = "Unpark a vehicle and calculate charge",
             description = "Releases the allocated spot and returns the computed parking bill.",
@@ -126,9 +125,9 @@ class ParkingResource {
         return ResponseEntity.status(HttpStatus.OK).body(charge);
     }
 
-    @PostMapping("/unParkVehicle/vehicleNo/{vehicleNo}")
+    @PostMapping("vehicles/{vehicleNo}/parking-exit")
     @Operation(
-            summary = "Unpark a vehicle using vehicle number",
+            summary = "Un park a vehicle using vehicle number",
             description = "Looks up the vehicle by registration number, releases the allocated spot, and returns the computed parking bill.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Vehicle unparked and charge returned"),
